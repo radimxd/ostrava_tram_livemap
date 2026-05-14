@@ -74,14 +74,14 @@ Projekt obsahuje cron collector pro produkční běh na Vercelu:
 GET /api/collect
 ```
 
-Endpoint stáhne aktuální data z MPVnet, uloží normalizované pozice do PostGIS a vrátí krátký souhrn kolekce. Konfigurace ve `vercel.json` ho spouští každých 5 minut:
+Endpoint stáhne aktuální data z MPVnet, uloží normalizované pozice do PostGIS a vrátí krátký souhrn kolekce. Konfigurace ve `vercel.json` ho spouští jednou denně ve 03:00 UTC:
 
 ```json
 {
   "crons": [
     {
       "path": "/api/collect",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
