@@ -10,13 +10,14 @@ import type {
   VehicleSource,
   VehiclesResponse
 } from "@/types/vehicle";
+import type { Map as LeafletMap } from "leaflet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip } from "react-leaflet";
 
 const OSTRAVA_CENTER: [number, number] = [49.8209, 18.2625];
 const STALE_TTL_MS = 30000;
 const TRAIL_TTL_MS = 30 * 60 * 1000;
-const DEFAULT_REFRESH_SECONDS = Number(process.env.NEXT_PUBLIC_DEFAULT_REFRESH_SECONDS ?? 10);
+const REFRESH_SECONDS = 10;
 const ANIMATION_DURATION_MULTIPLIER = 1.15;
 
 type VehicleAnimation = {
@@ -126,9 +127,6 @@ export default function TransitMap() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<VehicleFilter>("all");
-  const [refreshSeconds, setRefreshSeconds] = useState(
-    [5, 10, 15, 30].includes(DEFAULT_REFRESH_SECONDS) ? DEFAULT_REFRESH_SECONDS : 10
-  );
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<SelectedRouteState | null>(null);
@@ -141,6 +139,7 @@ export default function TransitMap() {
   const vehiclesRef = useRef<DisplayVehicle[]>([]);
   const trailsRef = useRef<Map<string, TrailPoint[]>>(new Map());
   const frameRef = useRef<number | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
 
   useEffect(() => {
     vehiclesRef.current = vehicles;
@@ -148,7 +147,7 @@ export default function TransitMap() {
 
   const applyIncomingVehicles = useCallback((incoming: Vehicle[]) => {
     const now = Date.now();
-    const durationMs = Math.round(refreshSeconds * 1000 * ANIMATION_DURATION_MULTIPLIER);
+    const durationMs = Math.round(REFRESH_SECONDS * 1000 * ANIMATION_DURATION_MULTIPLIER);
     const currentById = new Map(vehiclesRef.current.map((vehicle) => [vehicle.id, vehicle]));
     const incomingIds = new Set(incoming.map((vehicle) => vehicle.id));
     const nextAnimations = new Map<string, VehicleAnimation>();
@@ -209,7 +208,7 @@ export default function TransitMap() {
     animationsRef.current = nextAnimations;
     setVehicles(Array.from(nextAnimations.values()).map((animation) => toDisplayVehicle(animation, now)));
     setTrailVersion((version) => version + 1);
-  }, [refreshSeconds]);
+  }, []);
 
   const selectVehicle = useCallback(async (vehicle: DisplayVehicle) => {
     setSelectedVehicleId(vehicle.id);
@@ -239,7 +238,7 @@ export default function TransitMap() {
         stops: [],
         source: "unavailable",
         geometryAvailable: false,
-        error: "Tohle vozidlo neobsahuje metadata spoje pro načtení plánované trasy."
+        error: "Trasa není dostupná."
       });
       return;
     }
@@ -257,7 +256,7 @@ export default function TransitMap() {
       const data = (await response.json()) as VehicleRouteResponse;
 
       if (!response.ok || data.route.length < 2) {
-        throw new Error(data.error ?? `Route API responded with HTTP ${response.status}`);
+        throw new Error("Trasa není dostupná.");
       }
 
       setSelectedRoute({
@@ -269,7 +268,7 @@ export default function TransitMap() {
         error: data.error ?? null
       });
     } catch (routeError) {
-      const message = routeError instanceof Error ? routeError.message : "Nepodařilo se načíst trasu.";
+      const message = routeError instanceof Error ? routeError.message : "Trasa není dostupná.";
 
       if (process.env.NODE_ENV === "development") {
         console.debug("[TransitMap] Route lookup failed:", message);
@@ -321,10 +320,10 @@ export default function TransitMap() {
     void fetchVehicles();
     const interval = window.setInterval(() => {
       void fetchVehicles();
-    }, refreshSeconds * 1000);
+    }, REFRESH_SECONDS * 1000);
 
     return () => window.clearInterval(interval);
-  }, [fetchVehicles, refreshSeconds]);
+  }, [fetchVehicles]);
 
   useEffect(() => {
     const tick = () => {
@@ -395,10 +394,19 @@ export default function TransitMap() {
     () => selectedRouteSplit.future.map((point) => [point.lat, point.lng] as [number, number]),
     [selectedRouteSplit]
   );
+  const centerSelectedVehicle = useCallback(() => {
+    if (!selectedVehicle || !mapRef.current) {
+      return;
+    }
+
+    mapRef.current.flyTo([selectedVehicle.lat, selectedVehicle.lng], Math.max(mapRef.current.getZoom(), 15), {
+      duration: 0.8
+    });
+  }, [selectedVehicle]);
 
   return (
     <main className="relative h-screen w-screen bg-ink">
-      <MapContainer center={OSTRAVA_CENTER} zoom={13} minZoom={10} maxZoom={18} zoomControl={false}>
+      <MapContainer ref={mapRef} center={OSTRAVA_CENTER} zoom={13} minZoom={10} maxZoom={18} zoomControl={false}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -458,44 +466,55 @@ export default function TransitMap() {
           tramCount={tramCount}
           lastRefresh={lastRefresh}
           filter={filter}
-          refreshSeconds={refreshSeconds}
           onFilterChange={setFilter}
-          onRefreshSecondsChange={setRefreshSeconds}
         />
       </div>
 
       {selectedVehicle ? (
         <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-[1000] sm:bottom-4 sm:left-4 sm:right-auto">
-          <div className="pointer-events-auto w-[min(92vw,380px)] rounded-lg border border-white/10 bg-panel p-4 text-sm text-slate-100 shadow-panel backdrop-blur-xl">
+          <div className="pointer-events-auto w-[min(92vw,360px)] rounded-md border border-white/10 bg-[#11161d]/95 p-3 text-sm text-slate-100 shadow-panel backdrop-blur-xl">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-slate-400">Vybrané vozidlo</div>
-                <div className="mt-1 text-lg font-semibold">
-                  Linka {selectedVehicle.line ?? "?"} · {selectedVehicle.destination ?? "neznámý směr"}
+              <div className="min-w-0">
+                <div className="text-xs text-slate-400">{selectedVehicle.type === "tram" ? "Tramvaj" : selectedVehicle.type === "bus" ? "Bus" : selectedVehicle.type === "trolleybus" ? "Trolejbus" : "Vozidlo"} · {selectedVehicle.id}</div>
+                <div className="mt-1 truncate text-base font-semibold">
+                  Linka {selectedVehicle.line ?? "?"} → {selectedVehicle.destination ?? "neznámý směr"}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedVehicleId(null);
-                  setSelectedRoute(null);
-                  setPersistedTrail([]);
-                  setHistorySource("session");
-                }}
-                className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-100 ring-1 ring-white/15 hover:bg-white/15"
-              >
-                Zavřít
-              </button>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={centerSelectedVehicle}
+                  className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-100 ring-1 ring-white/15 hover:bg-white/15"
+                >
+                  Vycentrovat
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedVehicleId(null);
+                    setSelectedRoute(null);
+                    setPersistedTrail([]);
+                    setHistorySource("session");
+                  }}
+                  className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-100 ring-1 ring-white/15 hover:bg-white/15"
+                >
+                  Zavřít
+                </button>
+              </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="mt-3 grid grid-cols-4 gap-2">
               <div className="rounded-md bg-white/5 p-2">
-                <div className="text-xs text-slate-400">GPS stopa</div>
-                <div className="font-semibold">{selectedTrail.length} bodů</div>
+                <div className="text-xs text-slate-400">Zpoždění</div>
+                <div className="font-semibold">{selectedVehicle.delaySeconds === null ? "?" : `${Math.round(selectedVehicle.delaySeconds / 60)} min`}</div>
               </div>
               <div className="rounded-md bg-white/5 p-2">
-                <div className="text-xs text-slate-400">Trasa</div>
-                <div className="font-semibold">{selectedRoute?.geometryAvailable ? `${selectedRoute.route.length} bodů` : "jen zastávky"}</div>
+                <div className="text-xs text-slate-400">Aktualizace</div>
+                <div className="font-semibold">{new Date(selectedVehicle.lastUpdate).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</div>
+              </div>
+              <div className="rounded-md bg-white/5 p-2">
+                <div className="text-xs text-slate-400">Stopa</div>
+                <div className="font-semibold">{selectedTrail.length}</div>
               </div>
               <div className="rounded-md bg-white/5 p-2">
                 <div className="text-xs text-slate-400">Zastávky</div>
@@ -504,20 +523,18 @@ export default function TransitMap() {
             </div>
 
             <div className="mt-3 space-y-1 text-xs text-slate-300">
-              <div className="flex items-center gap-2"><i className="h-1 w-8 rounded bg-sky-400" />{historySource === "postgis" ? "historie z PostGIS" : "pozorovaná GPS stopa v této session"}</div>
-              <div className="flex items-center gap-2"><i className="h-1 w-8 rounded bg-slate-400" />plánovaná trasa za vozidlem</div>
-              <div className="flex items-center gap-2"><i className="h-1 w-8 rounded border border-orange-300 bg-orange-500" />kam spoj pojede dál</div>
+              <div className="flex items-center gap-2"><i className="h-1 w-8 rounded bg-sky-400" />{historySource === "postgis" ? "Historie" : "Stopa"}</div>
+              <div className="flex items-center gap-2"><i className="h-1 w-8 rounded bg-slate-400" />Projetá trasa</div>
+              <div className="flex items-center gap-2"><i className="h-1 w-8 rounded border border-orange-300 bg-orange-500" />Další trasa</div>
             </div>
 
             {routeLoading ? (
-              <div className="mt-3 rounded-md border border-sky-300/20 bg-sky-400/10 px-3 py-2 text-sky-100">
-                Načítám geometrii trasy z MPVnet...
-              </div>
+              <div className="mt-3 rounded-md border border-sky-300/20 bg-sky-400/10 px-3 py-2 text-sky-100">Načítám trasu...</div>
             ) : null}
 
             {selectedRoute?.error ? (
               <div className="mt-3 rounded-md border border-amber-300/20 bg-amber-400/10 px-3 py-2 text-amber-100">
-                {selectedRoute.error}
+                Trasa není dostupná
               </div>
             ) : null}
 

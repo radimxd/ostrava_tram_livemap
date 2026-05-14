@@ -60,7 +60,7 @@ export default function VehicleMarker({ vehicle, selected = false, onSelect }: V
 
     return L.divIcon({
       className: "",
-      html: `<div class="vehicle-marker ${typeClass} ${selectedClass}" style="transform: rotate(${rotation}deg)"><span style="transform: rotate(${-rotation}deg)">${line}</span></div>`,
+      html: `<div class="vehicle-marker ${typeClass} ${selectedClass}"><i class="vehicle-marker__direction" style="transform: translate(-50%, -50%) rotate(${rotation}deg)"></i><span>${line}</span></div>`,
       iconSize: [34, 34],
       iconAnchor: [17, 17],
       popupAnchor: [0, -18]
@@ -94,9 +94,7 @@ export default function VehicleMarker({ vehicle, selected = false, onSelect }: V
             <dd className="break-all font-mono text-xs">{vehicle.id}</dd>
           </dl>
           {vehicle.stale ? (
-            <div className="rounded-md bg-slate-700/70 px-2 py-1 text-xs text-slate-200">
-              Vozidlo teď chybí v poslední odpovědi, pozice je dočasně ponechaná.
-            </div>
+            <div className="rounded-md bg-slate-700/70 px-2 py-1 text-xs text-slate-200">Neaktivní</div>
           ) : null}
         </div>
       </Popup>

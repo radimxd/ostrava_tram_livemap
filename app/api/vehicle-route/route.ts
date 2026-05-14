@@ -3,6 +3,7 @@ import type { VehicleRouteRequest, VehicleRouteResponse } from "@/types/vehicle"
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 function isRouteRequest(value: unknown): value is VehicleRouteRequest {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
           route: [],
           stops: [],
           geometryAvailable: false,
-          error: "Vehicle does not include enough route metadata for MPVnet route lookup."
+          error: "Trasa není dostupná."
         },
         { status: 400 }
       );
@@ -44,9 +45,7 @@ export async function POST(request: Request) {
       route: result.route,
       stops: result.stops,
       geometryAvailable: result.geometryAvailable,
-      error: result.geometryAvailable
-        ? undefined
-        : "MPVnet vrátil jen pořadí zastávek, ne přesnou geometrii trasy. Čára mezi zastávkami je schválně skrytá, aby nevedla přes domy, trávu nebo chodníky."
+      error: result.geometryAvailable ? undefined : "Trasa není dostupná."
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown MPVnet route error";
@@ -61,7 +60,7 @@ export async function POST(request: Request) {
         route: [],
         stops: [],
         geometryAvailable: false,
-        error: message
+        error: "Trasa není dostupná."
       },
       { status: 502 }
     );

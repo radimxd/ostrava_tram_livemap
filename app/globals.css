@@ -45,9 +45,9 @@ body {
 
 .vehicle-marker {
   align-items: center;
-  border: 2px solid rgba(255, 255, 255, 0.88);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
   border-radius: 999px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
   color: #0f172a;
   display: flex;
   font-size: 12px;
@@ -59,39 +59,58 @@ body {
   width: 34px;
 }
 
-.vehicle-marker::after {
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-bottom: 10px solid rgba(255, 255, 255, 0.92);
+.vehicle-marker span {
+  position: relative;
+  z-index: 2;
+}
+
+.vehicle-marker__direction {
+  height: 46px;
+  left: 50%;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform-origin: center;
+  width: 46px;
+  z-index: 1;
+}
+
+.vehicle-marker__direction::before {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 9px solid rgba(255, 255, 255, 0.95);
   content: "";
   left: 50%;
   position: absolute;
-  top: -8px;
+  top: -2px;
   transform: translateX(-50%);
 }
 
 .vehicle-marker--tram {
-  background: #f97316;
+  background: #e4572e;
 }
 
 .vehicle-marker--bus {
-  background: #38bdf8;
+  background: #2f80ed;
+  color: #f8fafc;
 }
 
 .vehicle-marker--trolleybus {
-  background: #22c55e;
+  background: #21a67a;
+  color: #f8fafc;
 }
 
 .vehicle-marker--unknown {
-  background: #cbd5e1;
+  background: #8a9199;
+  color: #f8fafc;
 }
 
 .vehicle-marker--stale {
-  background: #64748b;
+  background: #636b74;
   color: #e2e8f0;
-  opacity: 0.72;
+  opacity: 0.58;
 }
 
 .vehicle-marker--selected {
-  box-shadow: 0 0 0 5px rgba(249, 115, 22, 0.28), 0 12px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.42), 0 12px 26px rgba(0, 0, 0, 0.45);
 }

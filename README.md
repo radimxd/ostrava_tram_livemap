@@ -1,6 +1,6 @@
 # Ostrava Tram Live
 
-Funkční webový prototyp pro sledování aktuálních poloh vozidel MHD v Ostravě. Aplikace zobrazuje vozidla na Leaflet mapě, pravidelně obnovuje data a plynule animuje přesun markerů mezi jednotlivými aktualizacemi.
+Webový prototyp pro sledování aktuálních poloh vozidel MHD v Ostravě. Aplikace zobrazuje vozidla na Leaflet mapě, ukládá historii poloh a animuje přesun markerů mezi aktualizacemi.
 
 ![Screenshot placeholder](./docs/screenshot-placeholder.svg)
 
@@ -11,13 +11,13 @@ Funkční webový prototyp pro sledování aktuálních poloh vozidel MHD v Ostr
 - robustní normalizaci odpovědi s různými možnými názvy polí
 - demo fallback, když MPVnet neodpovídá nebo se nepodaří najít vozidla
 - full-screen mapu Ostravy přes OpenStreetMap tiles
-- filtr podle typu vozidla: All, Tram, Bus, Trolleybus, Unknown
+- filtr podle typu vozidla: Vše, Tram, Bus, Trolejbus, Neznámé
 - panel se stavem zdroje, počtem vozidel, počtem tramvají a časem aktualizace
 - plynulý pohyb markerů pomocí `requestAnimationFrame`
-- lineární interpolaci přes celý refresh interval s lehkým přesahem, aby vozidla mezi aktualizacemi nepůsobila jako skoky
+- pevný 10sekundový interval obnovy sladěný s animací markerů
 - stale režim: vozidla zmizelá z odpovědi zůstávají ještě 30 sekund šedá
 - jednoduchý výpočet headingu markeru funkcí `calculateBearing()`
-- klik na vozidlo načte trasu z reverse-engineered MPVnet `map/getRoute`; pokud endpoint vrátí jen zastávky bez přesné geometrie, aplikace zobrazí zastávky, ale schválně nekreslí zavádějící přímku přes zástavbu
+- klik na vozidlo načte dostupnou trasu z reverse-engineered MPVnet `map/getRoute`
 - volitelné ukládání poloh do PostGIS, takže kliknuté vozidlo může zobrazit historickou GPS stopu i po refreshi stránky
 
 ## Zdroj dat
@@ -104,10 +104,9 @@ MPVNET_URL=https://mpvnet.cz/odis/map/mapData
 MPVNET_ROUTE_URL=https://mpvnet.cz/odis/map/getRoute
 DATABASE_URL=postgres://tramvaj:tramvaj@localhost:5432/ostrava_tram_live
 CRON_SECRET=replace-with-a-long-random-secret-in-production
-NEXT_PUBLIC_DEFAULT_REFRESH_SECONDS=10
 ```
 
-`MPVNET_URL` nastavuje server-side endpoint pro proxy. `MPVNET_ROUTE_URL` nastavuje endpoint pro plánované trasy. `DATABASE_URL` zapíná PostGIS persistenci. `CRON_SECRET` chrání produkční collector endpoint. `NEXT_PUBLIC_DEFAULT_REFRESH_SECONDS` nastavuje výchozí interval obnovování na klientovi. UI povoluje hodnoty 5, 10, 15 a 30 sekund.
+`MPVNET_URL` nastavuje server-side endpoint pro proxy. `MPVNET_ROUTE_URL` nastavuje endpoint pro plánované trasy. `DATABASE_URL` zapíná PostGIS persistenci. `CRON_SECRET` chrání produkční collector endpoint. Klient obnovuje data pevně každých 10 sekund.
 
 ## Struktura
 
