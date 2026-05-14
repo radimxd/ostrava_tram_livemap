@@ -1,6 +1,7 @@
 "use client";
 
 import type { VehicleSource, VehicleType } from "@/types/vehicle";
+import { useState } from "react";
 
 export type VehicleFilter = "all" | VehicleType;
 
@@ -51,6 +52,26 @@ export default function VehiclePanel({
   filter,
   onFilterChange
 }: VehiclePanelProps) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  if (collapsed) {
+    return (
+      <aside className="pointer-events-auto w-fit max-w-[92vw] rounded-full border border-white/10 bg-[#11161d]/95 px-3 py-2 text-slate-100 shadow-panel backdrop-blur-xl">
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          className="flex min-h-8 items-center gap-3 text-left"
+          aria-label="Zobrazit panel"
+        >
+          <span className={`h-2.5 w-2.5 rounded-full ${source === "mpvnet" ? "bg-emerald-300" : source === "demo" ? "bg-amber-300" : "bg-rose-300"}`} />
+          <span className="text-sm font-semibold">Ostrava Tram Live</span>
+          <span className="text-xs text-slate-400">{totalCount} · {tramCount}</span>
+          {loading ? <span className="h-1.5 w-1.5 rounded-full bg-sky-300" /> : null}
+        </button>
+      </aside>
+    );
+  }
+
   return (
     <aside className="pointer-events-auto w-[min(92vw,340px)] rounded-md border border-white/10 bg-[#11161d]/95 p-3 text-slate-100 shadow-panel backdrop-blur-xl">
       <div className="flex items-start justify-between gap-3">
@@ -60,9 +81,19 @@ export default function VehiclePanel({
             {totalCount} vozidel · {tramCount} tramvají
           </div>
         </div>
-        <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ring-1 ${sourceBadge(source)}`}>
-          {sourceLabel(source)}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ring-1 ${sourceBadge(source)}`}>
+            {sourceLabel(source)}
+          </span>
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            className="rounded-full bg-white/5 px-2 py-1 text-[11px] font-medium text-slate-300 ring-1 ring-white/10 hover:bg-white/10"
+            aria-label="Sbalit panel"
+          >
+            Skrýt
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-3 text-xs">

@@ -132,6 +132,7 @@ export default function TransitMap() {
   const [selectedRoute, setSelectedRoute] = useState<SelectedRouteState | null>(null);
   const [persistedTrail, setPersistedTrail] = useState<RoutePoint[]>([]);
   const [historySource, setHistorySource] = useState<VehicleHistoryResponse["source"] | "session">("session");
+  const [selectedPanelCollapsed, setSelectedPanelCollapsed] = useState(false);
   const [routeLoading, setRouteLoading] = useState(false);
   const [trailVersion, setTrailVersion] = useState(0);
 
@@ -140,6 +141,7 @@ export default function TransitMap() {
   const trailsRef = useRef<Map<string, TrailPoint[]>>(new Map());
   const frameRef = useRef<number | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
+  const sheetDragStartYRef = useRef<number | null>(null);
 
   useEffect(() => {
     vehiclesRef.current = vehicles;
@@ -215,6 +217,7 @@ export default function TransitMap() {
     setSelectedRoute(null);
     setPersistedTrail([]);
     setHistorySource("session");
+    setSelectedPanelCollapsed(false);
 
     void fetch(`/api/vehicle-history/${encodeURIComponent(vehicle.id)}?minutes=180`, { cache: "no-store" })
       .then(async (response) => {
@@ -403,6 +406,28 @@ export default function TransitMap() {
       duration: 0.8
     });
   }, [selectedVehicle]);
+  const startSheetDrag = useCallback((clientY: number) => {
+    sheetDragStartYRef.current = clientY;
+  }, []);
+  const finishSheetDrag = useCallback((clientY: number) => {
+    const startY = sheetDragStartYRef.current;
+    sheetDragStartYRef.current = null;
+
+    if (startY === null) {
+      return;
+    }
+
+    const deltaY = clientY - startY;
+
+    if (deltaY > 48) {
+      setSelectedPanelCollapsed(true);
+      return;
+    }
+
+    if (deltaY < -48) {
+      setSelectedPanelCollapsed(false);
+    }
+  }, []);
 
   return (
     <main className="relative h-screen w-screen bg-ink">
@@ -471,8 +496,44 @@ export default function TransitMap() {
       </div>
 
       {selectedVehicle ? (
-        <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-[1000] sm:bottom-4 sm:left-4 sm:right-auto">
-          <div className="pointer-events-auto w-[min(92vw,360px)] rounded-md border border-white/10 bg-[#11161d]/95 p-3 text-sm text-slate-100 shadow-panel backdrop-blur-xl">
+        <div className={`pointer-events-none absolute z-[1000] ${
+          selectedPanelCollapsed
+            ? "bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-auto"
+            : "bottom-0 left-0 right-0 sm:bottom-4 sm:left-4 sm:right-auto"
+        }`}>
+          {selectedPanelCollapsed ? (
+            <button
+              type="button"
+              onClick={() => setSelectedPanelCollapsed(false)}
+              onPointerDown={(event) => startSheetDrag(event.clientY)}
+              onPointerUp={(event) => finishSheetDrag(event.clientY)}
+              onPointerCancel={() => {
+                sheetDragStartYRef.current = null;
+              }}
+              className="pointer-events-auto mx-auto flex min-h-12 w-[min(92vw,360px)] items-center justify-between gap-3 rounded-full border border-white/10 bg-[#11161d]/95 px-4 py-2 text-left text-sm text-slate-100 shadow-panel backdrop-blur-xl sm:mx-0"
+              aria-label="Zobrazit detail vozidla"
+            >
+              <span className="min-w-0">
+                <span className="block truncate font-semibold">Linka {selectedVehicle.line ?? "?"}</span>
+                <span className="block truncate text-xs text-slate-400">{selectedVehicle.destination ?? "neznámý směr"}</span>
+              </span>
+              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-slate-200 ring-1 ring-white/10">Nahoru</span>
+            </button>
+          ) : (
+          <div className="pointer-events-auto max-h-[78vh] w-full overflow-hidden rounded-t-2xl border border-white/10 bg-[#11161d]/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-sm text-slate-100 shadow-panel backdrop-blur-xl sm:max-h-[80vh] sm:w-[min(92vw,360px)] sm:rounded-md sm:pb-3">
+            <div
+              className="mx-auto mb-3 flex h-7 w-24 touch-none items-center justify-center sm:mb-2"
+              onPointerDown={(event) => startSheetDrag(event.clientY)}
+              onPointerUp={(event) => finishSheetDrag(event.clientY)}
+              onPointerCancel={() => {
+                sheetDragStartYRef.current = null;
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Táhnout panel"
+            >
+              <span className="h-1.5 w-12 rounded-full bg-white/25" />
+            </div>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-xs text-slate-400">{selectedVehicle.type === "tram" ? "Tramvaj" : selectedVehicle.type === "bus" ? "Bus" : selectedVehicle.type === "trolleybus" ? "Trolejbus" : "Vozidlo"} · {selectedVehicle.id}</div>
@@ -486,7 +547,14 @@ export default function TransitMap() {
                   onClick={centerSelectedVehicle}
                   className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-100 ring-1 ring-white/15 hover:bg-white/15"
                 >
-                  Vycentrovat
+                  Střed
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPanelCollapsed(true)}
+                  className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-100 ring-1 ring-white/15 hover:bg-white/15"
+                >
+                  Skrýt
                 </button>
                 <button
                   type="button"
@@ -495,6 +563,7 @@ export default function TransitMap() {
                     setSelectedRoute(null);
                     setPersistedTrail([]);
                     setHistorySource("session");
+                    setSelectedPanelCollapsed(false);
                   }}
                   className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-100 ring-1 ring-white/15 hover:bg-white/15"
                 >
@@ -555,6 +624,7 @@ export default function TransitMap() {
               </div>
             ) : null}
           </div>
+          )}
         </div>
       ) : null}
     </main>
