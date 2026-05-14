@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Ostrava Tram Live screenshot placeholder</title>
+  <desc id="desc">Placeholder preview for the future application screenshot.</desc>
+  <rect width="1280" height="720" fill="#09111f"/>
+  <rect x="40" y="40" width="360" height="520" rx="8" fill="#111827" stroke="#334155"/>
+  <text x="72" y="104" fill="#f8fafc" font-family="Arial, sans-serif" font-size="34" font-weight="700">Ostrava Tram Live</text>
+  <text x="72" y="150" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="20">Screenshot placeholder</text>
+  <circle cx="690" cy="250" r="20" fill="#f97316"/>
+  <circle cx="850" cy="360" r="20" fill="#f97316"/>
+  <circle cx="980" cy="300" r="20" fill="#38bdf8"/>
+  <path d="M470 610 C590 500 740 530 870 420 S1050 250 1190 190" fill="none" stroke="#475569" stroke-width="8"/>
+  <path d="M470 220 C620 280 760 210 910 260 S1090 420 1200 390" fill="none" stroke="#334155" stroke-width="6"/>
+</svg>

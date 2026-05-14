@@ -1,0 +1,22 @@
+services:
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: ostrava-tram-live-postgis
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ostrava_tram_live
+      POSTGRES_USER: tramvaj
+      POSTGRES_PASSWORD: tramvaj
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis-data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tramvaj -d ostrava_tram_live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgis-data:

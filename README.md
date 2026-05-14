@@ -1,0 +1,106 @@
+# Ostrava Tram Live
+
+Funkční webový prototyp pro sledování aktuálních poloh vozidel MHD v Ostravě. Aplikace zobrazuje vozidla na Leaflet mapě, pravidelně obnovuje data a plynule animuje přesun markerů mezi jednotlivými aktualizacemi.
+
+![Screenshot placeholder](./docs/screenshot-placeholder.svg)
+
+## Co prototyp umí
+
+- server-side proxy endpoint `GET /api/vehicles`
+- primární pokus o načtení dat z neoficiálního MPVnet ODIS endpointu
+- robustní normalizaci odpovědi s různými možnými názvy polí
+- demo fallback, když MPVnet neodpovídá nebo se nepodaří najít vozidla
+- full-screen mapu Ostravy přes OpenStreetMap tiles
+- filtr podle typu vozidla: All, Tram, Bus, Trolleybus, Unknown
+- panel se stavem zdroje, počtem vozidel, počtem tramvají a časem aktualizace
+- plynulý pohyb markerů pomocí `requestAnimationFrame`
+- lineární interpolaci přes celý refresh interval s lehkým přesahem, aby vozidla mezi aktualizacemi nepůsobila jako skoky
+- stale režim: vozidla zmizelá z odpovědi zůstávají ještě 30 sekund šedá
+- jednoduchý výpočet headingu markeru funkcí `calculateBearing()`
+- klik na vozidlo načte trasu z reverse-engineered MPVnet `map/getRoute`; pokud endpoint vrátí jen zastávky bez přesné geometrie, aplikace zobrazí zastávky, ale schválně nekreslí zavádějící přímku přes zástavbu
+- volitelné ukládání poloh do PostGIS, takže kliknuté vozidlo může zobrazit historickou GPS stopu i po refreshi stránky
+
+## Zdroj dat
+
+Projekt používá neoficiální/reverse-engineered endpoint:
+
+```txt
+POST https://mpvnet.cz/odis/map/mapData
+```
+
+Endpoint není veřejně dokumentované API. Struktura odpovědi se může změnit, dostupnost není garantovaná a provozovatel může změnit pravidla přístupu. Proto aplikace používá backend proxy, tolerantní parser a demo fallback.
+
+## Spuštění
+
+```bash
+npm install
+npm run dev
+```
+
+Potom otevři:
+
+```txt
+http://localhost:3003
+```
+
+Vývojový server je v `package.json` nastavený pevně na port `3003`.
+
+## PostGIS
+
+Pro lokální databázi spusť:
+
+```bash
+docker compose up -d
+```
+
+Databáze používá image `postgis/postgis:16-3.4` a inicializační migraci v `db/migrations/001_init.sql`.
+Tabulka `vehicle_positions` ukládá ID vozidla, linku, typ, zpoždění, cíl, zdroj dat, čas pozorování, surový JSON a geometrii `GEOGRAPHY(Point, 4326)`.
+
+Ukládání běží automaticky při každém pollingu `GET /api/vehicles`. Pokud databáze není dostupná, aplikace pokračuje bez pádu a pouze přeskočí persistenci.
+
+Historii jednoho vozidla vrací:
+
+```txt
+GET /api/vehicle-history/:vehicleId?minutes=180
+```
+
+Na mapě se PostGIS historie použije po kliknutí na vozidlo. Pokud pro vozidlo ještě nejsou uložené body, UI zobrazí jen GPS stopu nasbíranou v aktuální browser session.
+
+## Konfigurace
+
+V `.env` nebo `.env.local`:
+
+```env
+MPVNET_URL=https://mpvnet.cz/odis/map/mapData
+MPVNET_ROUTE_URL=https://mpvnet.cz/odis/map/getRoute
+DATABASE_URL=postgres://tramvaj:tramvaj@localhost:5432/ostrava_tram_live
+NEXT_PUBLIC_DEFAULT_REFRESH_SECONDS=10
+```
+
+`MPVNET_URL` nastavuje server-side endpoint pro proxy. `MPVNET_ROUTE_URL` nastavuje endpoint pro plánované trasy. `DATABASE_URL` zapíná PostGIS persistenci. `NEXT_PUBLIC_DEFAULT_REFRESH_SECONDS` nastavuje výchozí interval obnovování na klientovi. UI povoluje hodnoty 5, 10, 15 a 30 sekund.
+
+## Struktura
+
+```txt
+app/page.tsx
+app/api/vehicles/route.ts
+app/api/vehicle-history/[vehicleId]/route.ts
+components/TransitMap.tsx
+components/TransitMapLeaflet.tsx
+components/VehicleMarker.tsx
+components/VehiclePanel.tsx
+db/migrations/001_init.sql
+docker-compose.yml
+lib/db.ts
+lib/mpvnet.ts
+lib/vehicle-normalizer.ts
+types/vehicle.ts
+```
+
+## Další plán
+
+- reliability score pro zdroj dat a jednotlivé linky
+- heatmapa zpoždění
+- statistiky linek a intervalů
+- PostGIS prostorové dotazy nad zastávkami a úseky linek
+- dlouhodobá archivace s retencí a agregacemi
