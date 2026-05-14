@@ -66,6 +66,35 @@ GET /api/vehicle-history/:vehicleId?minutes=180
 
 Na mapě se PostGIS historie použije po kliknutí na vozidlo. Pokud pro vozidlo ještě nejsou uložené body, UI zobrazí jen GPS stopu nasbíranou v aktuální browser session.
 
+## Vercel Cron
+
+Projekt obsahuje cron collector pro produkční běh na Vercelu:
+
+```txt
+GET /api/collect
+```
+
+Endpoint stáhne aktuální data z MPVnet, uloží normalizované pozice do PostGIS a vrátí krátký souhrn kolekce. Konfigurace ve `vercel.json` ho spouští každých 5 minut:
+
+```json
+{
+  "crons": [
+    {
+      "path": "/api/collect",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
+```
+
+Pro produkci nastav ve Vercelu `CRON_SECRET`. Endpoint potom vyžaduje hlavičku:
+
+```txt
+Authorization: Bearer <CRON_SECRET>
+```
+
+Bez `CRON_SECRET` jde endpoint zavolat ručně, což je pohodlné pro lokální vývoj.
+
 ## Konfigurace
 
 V `.env` nebo `.env.local`:
@@ -74,15 +103,17 @@ V `.env` nebo `.env.local`:
 MPVNET_URL=https://mpvnet.cz/odis/map/mapData
 MPVNET_ROUTE_URL=https://mpvnet.cz/odis/map/getRoute
 DATABASE_URL=postgres://tramvaj:tramvaj@localhost:5432/ostrava_tram_live
+CRON_SECRET=replace-with-a-long-random-secret-in-production
 NEXT_PUBLIC_DEFAULT_REFRESH_SECONDS=10
 ```
 
-`MPVNET_URL` nastavuje server-side endpoint pro proxy. `MPVNET_ROUTE_URL` nastavuje endpoint pro plánované trasy. `DATABASE_URL` zapíná PostGIS persistenci. `NEXT_PUBLIC_DEFAULT_REFRESH_SECONDS` nastavuje výchozí interval obnovování na klientovi. UI povoluje hodnoty 5, 10, 15 a 30 sekund.
+`MPVNET_URL` nastavuje server-side endpoint pro proxy. `MPVNET_ROUTE_URL` nastavuje endpoint pro plánované trasy. `DATABASE_URL` zapíná PostGIS persistenci. `CRON_SECRET` chrání produkční collector endpoint. `NEXT_PUBLIC_DEFAULT_REFRESH_SECONDS` nastavuje výchozí interval obnovování na klientovi. UI povoluje hodnoty 5, 10, 15 a 30 sekund.
 
 ## Struktura
 
 ```txt
 app/page.tsx
+app/api/collect/route.ts
 app/api/vehicles/route.ts
 app/api/vehicle-history/[vehicleId]/route.ts
 components/TransitMap.tsx
@@ -93,8 +124,10 @@ db/migrations/001_init.sql
 docker-compose.yml
 lib/db.ts
 lib/mpvnet.ts
+lib/vehicle-collector.ts
 lib/vehicle-normalizer.ts
 types/vehicle.ts
+vercel.json
 ```
 
 ## Další plán
